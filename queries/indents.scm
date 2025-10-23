@@ -33,7 +33,7 @@
 (if_statement_condition_and_consequence
   consequence: (_
     ";" @indent.end) @_consequence
-  (#not-match? @_consequence "{")
+  (#not-match? @_consequence "\\{")
 ) @indent.begin
 
 (else_clause) @indent.branch
