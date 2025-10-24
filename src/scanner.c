@@ -7,48 +7,57 @@
 #include <wctype.h>
 
 typedef enum {
-    // IDENTIFIER,
-    HEREDOC_START,
-    HEREDOC_END,
-    ERROR_SENTINEL,
+  // IDENTIFIER,
+  HEREDOC_START,
+  HEREDOC_END,
+  ERROR_SENTINEL,
 } TokenType;
 
 // typedef Array(char)    String;
 typedef Array(int32_t) String32;
 
 static inline bool string_eq(String32 *self, String32 *other) {
-    if (self->size != other->size)
-        return false;
-    if (self->size == 0)
-        return self->size == other->size;
-    return memcmp(self->contents, other->contents, self->size * sizeof(self->contents[0])) == 0;
+  if (self->size != other->size)
+    return false;
+  if (self->size == 0)
+    return self->size == other->size;
+  return memcmp(self->contents, other->contents,
+                self->size * sizeof(self->contents[0])) == 0;
 }
 
 typedef struct {
-    Array(String32) heredocs;
+  Array(String32) heredocs;
 } Scanner;
 
 typedef enum { ERROR, END } ScanContentResult;
 
-static inline void reset_heredoc(String32 *heredoc) {
-    array_delete(heredoc);
+static inline void reset_heredoc(String32 *heredoc) { array_delete(heredoc); }
+
+static inline void advance(TSLexer *lexer) {
+  if (!lexer->eof(lexer))
+    lexer->advance(lexer, false);
+}
+static inline void skip(TSLexer *lexer) {
+  if (!lexer->eof(lexer))
+    lexer->advance(lexer, true);
 }
 
-static inline void advance(TSLexer *lexer) { if (!lexer->eof(lexer)) lexer->advance(lexer, false); }
-static inline void    skip(TSLexer *lexer) { if (!lexer->eof(lexer)) lexer->advance(lexer, true);  }
-
-static inline bool starts_identifier(int32_t c)    { return iswalpha(c) || c == '_' || c >= 0x80; }
-static inline bool continues_identifier(int32_t c) { return iswalnum(c) || c == '_' || c >= 0x80; }
+static inline bool starts_identifier(int32_t c) {
+  return iswalpha(c) || c == '_' || c >= 0x80;
+}
+static inline bool continues_identifier(int32_t c) {
+  return iswalnum(c) || c == '_' || c >= 0x80;
+}
 
 static String32 scan_heredoc_word(TSLexer *lexer) {
-    String32 result = (String32)array_new();
+  String32 result = (String32)array_new();
 
-    while (continues_identifier(lexer->lookahead)) {
-        array_push(&result, lexer->lookahead);
-        advance(lexer);
-    }
+  while (continues_identifier(lexer->lookahead)) {
+    array_push(&result, lexer->lookahead);
+    advance(lexer);
+  }
 
-    return result;
+  return result;
 }
 
 /*
@@ -119,162 +128,163 @@ static int check_for_keyword(String ident) {
 }
 */
 
-bool tree_sitter_jai_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
-    const bool is_error_recovery = valid_symbols[ERROR_SENTINEL];
-    if (is_error_recovery)
-        return false;
+bool tree_sitter_jai_external_scanner_scan(void *payload, TSLexer *lexer,
+                                           const bool *valid_symbols) {
+  const bool is_error_recovery = valid_symbols[ERROR_SENTINEL];
+  if (is_error_recovery)
+    return false;
+
+  lexer->mark_end(lexer);
+  /*
+      if (valid_symbols[IDENTIFIER]) {
+
+          lexer->result_symbol = IDENTIFIER;
+          while (iswspace(lexer->lookahead))
+              skip(lexer);
+
+          if (starts_identifier(lexer->lookahead)) {
+              String ident = (String)array_new();
+              array_push(&ident, lexer->lookahead);
+
+              advance(lexer);
+              while (1) {
+                  if (continues_identifier(lexer->lookahead)) {
+                      array_push(&ident, lexer->lookahead);
+                      advance(lexer);
+                      continue;
+                  } else if (lexer->lookahead == '\\') {
+                      advance(lexer);
+                      while (iswspace(lexer->lookahead)) {
+                          advance(lexer);
+                      }
+                      continue;
+                  }
+                  break;
+              }
+              bool keyword = check_for_keyword(ident);
+              array_delete(&ident);
+
+              lexer->mark_end(lexer);
+              return !keyword;
+          }
+          return false;
+      }
+  */
+
+  Scanner *scanner = (Scanner *)payload;
+
+  if (valid_symbols[HEREDOC_END]) {
+    lexer->result_symbol = HEREDOC_END;
+    if (scanner->heredocs.size == 0)
+      return false;
+
+    String32 heredoc = *array_back(&scanner->heredocs);
+    while (iswspace(lexer->lookahead))
+      skip(lexer);
+
+    String32 word = scan_heredoc_word(lexer);
+    if (!string_eq(&word, &heredoc)) {
+      array_delete(&word);
+      return false;
+    }
+    array_delete(&word);
 
     lexer->mark_end(lexer);
-/* 
-    if (valid_symbols[IDENTIFIER]) {
+    array_delete(&array_pop(&scanner->heredocs));
+    return true;
+  }
 
-        lexer->result_symbol = IDENTIFIER;
-        while (iswspace(lexer->lookahead))
-            skip(lexer);
+  if (valid_symbols[HEREDOC_START]) {
+    lexer->result_symbol = HEREDOC_START;
+    String32 heredoc = array_new();
 
-        if (starts_identifier(lexer->lookahead)) {
-            String ident = (String)array_new();
-            array_push(&ident, lexer->lookahead);
+    while (iswspace(lexer->lookahead))
+      skip(lexer);
 
-            advance(lexer);
-            while (1) {
-                if (continues_identifier(lexer->lookahead)) {
-                    array_push(&ident, lexer->lookahead);
-                    advance(lexer);
-                    continue;
-                } else if (lexer->lookahead == '\\') {
-                    advance(lexer);
-                    while (iswspace(lexer->lookahead)) {
-                        advance(lexer);
-                    }
-                    continue;
-                }
-                break;
-            }
-            bool keyword = check_for_keyword(ident);
-            array_delete(&ident);
-
-            lexer->mark_end(lexer);
-            return !keyword;
-        }
-        return false;
+    heredoc = scan_heredoc_word(lexer);
+    if (heredoc.size == 0) {
+      array_delete(&heredoc);
+      return false;
     }
-*/
+    lexer->mark_end(lexer);
 
-    Scanner *scanner = (Scanner *)payload;
+    array_push(&scanner->heredocs, heredoc);
+    return true;
+  }
 
-    if (valid_symbols[HEREDOC_END]) {
-        lexer->result_symbol = HEREDOC_END;
-        if (scanner->heredocs.size == 0)
-            return false;
-
-        String32 heredoc = *array_back(&scanner->heredocs);
-        while (iswspace(lexer->lookahead))
-            skip(lexer);
-
-        String32 word = scan_heredoc_word(lexer);
-        if (!string_eq(&word, &heredoc)) {
-            array_delete(&word);
-            return false;
-        }
-        array_delete(&word);
-
-        lexer->mark_end(lexer);
-        array_delete(&array_pop(&scanner->heredocs));
-        return true;
-    }
-
-    if (valid_symbols[HEREDOC_START]) {
-        lexer->result_symbol = HEREDOC_START;
-        String32 heredoc = array_new();
-
-        while (iswspace(lexer->lookahead))
-            skip(lexer);
-
-        heredoc = scan_heredoc_word(lexer);
-        if (heredoc.size == 0) {
-            array_delete(&heredoc);
-            return false;
-        }
-        lexer->mark_end(lexer);
-
-        array_push(&scanner->heredocs, heredoc);
-        return true;
-    }
-
-    return false;
+  return false;
 }
-
 
 void *tree_sitter_jai_external_scanner_create() {
-    Scanner *scanner = ts_calloc(1, sizeof(Scanner));
-    array_init(&scanner->heredocs);
-    return scanner;
+  Scanner *scanner = ts_calloc(1, sizeof(Scanner));
+  array_init(&scanner->heredocs);
+  return scanner;
 }
 
-unsigned tree_sitter_jai_external_scanner_serialize(void *payload, char *buffer) {
-    Scanner *scanner = (Scanner *)payload;
-    unsigned size = 0;
+unsigned tree_sitter_jai_external_scanner_serialize(void *payload,
+                                                    char *buffer) {
+  Scanner *scanner = (Scanner *)payload;
+  unsigned size = 0;
 
-    buffer[size++] = (char)scanner->heredocs.size;
-    for (unsigned j = 0; j < scanner->heredocs.size; j++) {
-        String32 *heredoc = &scanner->heredocs.contents[j];
-        unsigned word_size = heredoc->size * sizeof(heredoc->contents[0]);
+  buffer[size++] = (char)scanner->heredocs.size;
+  for (unsigned j = 0; j < scanner->heredocs.size; j++) {
+    String32 *heredoc = &scanner->heredocs.contents[j];
+    unsigned word_size = heredoc->size * sizeof(heredoc->contents[0]);
 
-        if (size + 5 + word_size >= TREE_SITTER_SERIALIZATION_BUFFER_SIZE)
-            return 0;
+    if (size + 5 + word_size >= TREE_SITTER_SERIALIZATION_BUFFER_SIZE)
+      return 0;
 
-        memcpy(&buffer[size], &heredoc->size, sizeof(int32_t));
-        size += sizeof(int32_t);
-        if (heredoc->size > 0) {
-            memcpy(&buffer[size], heredoc->contents, word_size);
-            size += word_size;
-        }
+    memcpy(&buffer[size], &heredoc->size, sizeof(int32_t));
+    size += sizeof(int32_t);
+    if (heredoc->size > 0) {
+      memcpy(&buffer[size], heredoc->contents, word_size);
+      size += word_size;
     }
+  }
 
-    return size;
+  return size;
 }
 
+void tree_sitter_jai_external_scanner_deserialize(void *payload,
+                                                  const char *buffer,
+                                                  unsigned length) {
+  Scanner *scanner = (Scanner *)payload;
+  unsigned size = 0;
+  for (uint32_t i = 0; i < scanner->heredocs.size; i++)
+    reset_heredoc(array_get(&scanner->heredocs, i));
 
-void tree_sitter_jai_external_scanner_deserialize(void *payload, const char *buffer, unsigned length) {
-    Scanner *scanner = (Scanner *)payload;
-    unsigned size = 0;
-    for (uint32_t i = 0; i < scanner->heredocs.size; i++)
-        reset_heredoc(array_get(&scanner->heredocs, i));
+  if (length == 0)
+    return;
 
-    if (length == 0)
-        return;
-
-    uint8_t open_heredoc_count = buffer[size++];
-    for (unsigned i = 0; i < open_heredoc_count; i++) {
-        String32 *heredoc = NULL;
-        if (i < scanner->heredocs.size) {
-            heredoc = array_get(&scanner->heredocs, i);
-        } else {
-            String32 new_heredoc = array_new();
-            array_push(&scanner->heredocs, new_heredoc);
-            heredoc = array_back(&scanner->heredocs);
-        }
-
-        memcpy(&heredoc->size, &buffer[size], sizeof(int32_t));
-        size += sizeof(int32_t);
-        unsigned word_size = heredoc->size * sizeof(heredoc->contents[0]);
-        if (word_size > 0) {
-            array_reserve(heredoc, heredoc->size);
-            memcpy(heredoc->contents, &buffer[size], word_size);
-            size += word_size;
-        }
+  uint8_t open_heredoc_count = buffer[size++];
+  for (unsigned i = 0; i < open_heredoc_count; i++) {
+    String32 *heredoc = NULL;
+    if (i < scanner->heredocs.size) {
+      heredoc = array_get(&scanner->heredocs, i);
+    } else {
+      String32 new_heredoc = array_new();
+      array_push(&scanner->heredocs, new_heredoc);
+      heredoc = array_back(&scanner->heredocs);
     }
 
-    assert(size == length);
+    memcpy(&heredoc->size, &buffer[size], sizeof(int32_t));
+    size += sizeof(int32_t);
+    unsigned word_size = heredoc->size * sizeof(heredoc->contents[0]);
+    if (word_size > 0) {
+      array_reserve(heredoc, heredoc->size);
+      memcpy(heredoc->contents, &buffer[size], word_size);
+      size += word_size;
+    }
+  }
+
+  assert(size == length);
 }
 
 void tree_sitter_jai_external_scanner_destroy(void *payload) {
-    Scanner *scanner = (Scanner *)payload;
-    for (size_t i = 0; i < scanner->heredocs.size; i++) {
-        array_delete(&scanner->heredocs.contents[i]);
-    }
-    array_delete(&scanner->heredocs);
-    ts_free(scanner);
+  Scanner *scanner = (Scanner *)payload;
+  for (size_t i = 0; i < scanner->heredocs.size; i++) {
+    array_delete(&scanner->heredocs.contents[i]);
+  }
+  array_delete(&scanner->heredocs);
+  ts_free(scanner);
 }
-

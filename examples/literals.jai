@@ -18,3 +18,16 @@ f07 :: .25;
 f08 :: .12345E+5;
 f09 :: 1_5.;
 f10 :: 0.15e+0_2;
+
+a :: "0";
+b :: "`\"`";
+c :: "\x0c";
+e :: #string DONE
+Look at this backslash in quotes: "\"
+DONE
+f :: #string,cr END
+This line ends with carriage-return+line-feed:
+This one too
+END
+
+LowIndex :: #type, isa int;

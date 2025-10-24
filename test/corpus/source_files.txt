@@ -1,0 +1,71 @@
+============================================
+Import declarations
+============================================
+
+#import "Basic";
+Math :: #import "Math";
+Specific :: #import,file "files/specific.jai";
+Subdir :: #import,dir "files/From_Subdirectory";
+#import,string "factorial :: (x: int) -> int { if x <= 1 return 1; return x*factorial(x-1);}";
+
+----
+
+(source_file
+  (import_declaration
+		(directive)
+    (interpreted_string_literal
+      (interpreted_string_literal_content)))
+  (import_declaration
+    (identifier)
+		(directive)
+    (interpreted_string_literal
+      (interpreted_string_literal_content)))
+  (import_declaration
+    (identifier)
+		(directive)
+    (interpreted_string_literal
+      (interpreted_string_literal_content)))
+  (import_declaration
+    (identifier)
+		(directive)
+    (interpreted_string_literal
+      (interpreted_string_literal_content)))
+  (import_declaration
+		(directive)
+    (interpreted_string_literal
+      (interpreted_string_literal_content))))
+
+============================================
+Block comments
+============================================
+
+/*
+ * this is a block comment
+ */
+
+----
+
+(source_file
+  (comment))
+
+============================================
+Comments with asterisks
+============================================
+
+/* a */
+
+/* b **/
+
+/* c ***/
+
+/* d
+
+***/
+
+---
+
+(source_file
+  (comment)
+  (comment)
+  (comment)
+  (comment))
