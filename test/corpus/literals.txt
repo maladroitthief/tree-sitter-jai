@@ -1,0 +1,194 @@
+================================================================================
+int literals
+================================================================================
+
+i01 :: 42;
+i02 :: 4_2;
+i03 :: 0600;
+i04 :: 0_600;
+i05 :: 0b101;
+i06 :: 0B101;
+i07 :: 0xBadFace;
+i08 :: 0xBad_Face;
+i09 :: 0x_67_7a_2f_cc_40_c6;
+
+--------------------------------------------------------------------------------
+
+(source_file
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(int_literal))))
+
+================================================================================
+float literals
+================================================================================
+
+f01 :: 0.;
+f02 :: 72.40;
+f03 :: 072.40;
+f04 :: 2.71828;
+f05 :: 1.e+0;
+f06 :: 6.67428e-11;
+f07 :: .25;
+f08 :: .12345E+5;
+f09 :: 1_5.;
+f10 :: 0.15e+0_2;
+
+--------------------------------------------------------------------------------
+
+(source_file
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal)))
+	(const_declaration
+		(identifier)
+		(expression_list
+		(float_literal))))
+
+================================================================================
+string literals
+================================================================================
+
+a :: "0";
+b :: "`\"`";
+c :: "\x0c";
+d :: "errorstring
+";
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (const_declaration
+		(identifier)
+		(expression_list
+			(interpreted_string_literal
+				(interpreted_string_literal_content))))
+  (const_declaration
+		(identifier)
+		(expression_list
+			(interpreted_string_literal
+				(interpreted_string_literal_content)
+				(escape_sequence)
+				(interpreted_string_literal_content))))
+  (const_declaration
+		(identifier)
+		(expression_list
+			(interpreted_string_literal
+				(escape_sequence))))
+	(ERROR
+		(identifier)
+		(interpreted_string_literal_content)))
+
+================================================================================
+array literals
+================================================================================
+
+s1 :[0]string: .[];
+s2 :[1]string: .["hi"];
+s3 :[2]string: .[
+  "hi",
+  "hello",
+];
+
+--------------------------------------------------------------------------------
+
+(source_file
+	(const_declaration
+		(identifier)
+		(array_type
+			(int_literal)
+			(type_identifier))
+		(expression_list
+			(array_literal
+				(array_value))))
+	(const_declaration
+		(identifier)
+		(array_type
+			(int_literal)
+			(type_identifier))
+		(expression_list
+			(array_literal
+				(array_value
+					(literal_element
+						(interpreted_string_literal
+							(interpreted_string_literal_content)))))))
+	(const_declaration
+		(identifier)
+		(array_type
+			(int_literal)
+			(type_identifier))
+		(expression_list
+			(array_literal
+				(array_value
+					(literal_element
+						(interpreted_string_literal
+							(interpreted_string_literal_content)))
+					(literal_element
+						(interpreted_string_literal
+							(interpreted_string_literal_content))))))))

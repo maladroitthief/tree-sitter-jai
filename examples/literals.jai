@@ -22,12 +22,12 @@ f10 :: 0.15e+0_2;
 a :: "0";
 b :: "`\"`";
 c :: "\x0c";
-e :: #string DONE
-Look at this backslash in quotes: "\"
-DONE
-f :: #string,cr END
-This line ends with carriage-return+line-feed:
-This one too
-END
+// d :: "errorstring
+// ";
 
-LowIndex :: #type, isa int;
+s1 :[0]string: .[];
+s2 :[1]string: .["hello"];
+s3 :[2]string: .[
+  "hello",
+	"sailor",
+];

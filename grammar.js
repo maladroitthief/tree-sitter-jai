@@ -16,6 +16,7 @@ const PREC = {
   and: 2,
   or: 1,
   composite_literal: -1,
+  array_literal: -2,
 };
 
 const multiplicativeOperators = ['*', '/', '%', '<<', '>>', '&', '&^'];
@@ -70,8 +71,8 @@ module.exports = grammar({
 
   inline: $ => [
     // todo: understand what this is doing
-    // $._type,
-    // $._type_identifier,
+    $._type,
+    $._type_identifier,
     // $._field_identifier,
     $._top_level_declaration,
     $._string_literal,
@@ -82,9 +83,10 @@ module.exports = grammar({
 
   conflicts: $ => [
     // todo: understand what this is doing
-    // [$._simple_type, $._expression],
+    [$._type, $._expression],
     // [$._simple_type, $.generic_type, $._expression],
-    // [$.qualified_type, $._expression],
+    [$.qualified_type, $._expression],
+    [$._expression, $.const_declaration],
     // [$.generic_type, $._simple_type],
     // [$.parameter_declaration, $._simple_type],
     // [$.type_parameter_declaration, $._simple_type, $._expression],
@@ -95,13 +97,13 @@ module.exports = grammar({
 
   reserved: {
     // todo: figure out what is going on here -ian
-    // global: $ => [
-    //   "if", "xx", "ifx", "for", "then", "else", "null", "case",
-    //   "enum", "true", "cast", "while", "break", "using", "defer",
-    //   "false", "union", "return", "struct", "inline", "remove",
-    //   "type_of", "continue", "operator", "no_inline", "interface",
-    //   "enum_flags", "push_context",
-    // ],
+    global: $ => [
+      // "if", "xx", "ifx", "for", "then", "else", "null", "case",
+      // "enum", "true", "cast", "while", "break", "using", "defer",
+      // "false", "union", "return", "struct", "inline", "remove",
+      // "type_of", "continue", "operator", "no_inline", "interface",
+      // "enum_flags", "push_context",
+    ],
   },
 
   externals: $ => [
@@ -114,11 +116,9 @@ module.exports = grammar({
 
   supertypes: $ => [
     // todo: understand what this is doing
-    // $._expression,
-    // $._type,
-    // $._simple_type,
-    // $._statement,
-    // $._simple_statement,
+    $._expression,
+    $._type,
+    $._statement,
   ],
 
   rules: {
@@ -131,7 +131,6 @@ module.exports = grammar({
 
     _top_level_declaration: $ => choice(
       // $.function_declaration,
-      // $.method_declaration,
       $.import_declaration,
     ),
 
@@ -153,7 +152,6 @@ module.exports = grammar({
       $._declaration,
       // $._simple_statement,
       // $.return_statement,
-      // $.go_statement,
       // $.defer_statement,
       // $.if_statement,
       // $.for_statement,
@@ -176,38 +174,39 @@ module.exports = grammar({
     ),
 
     _type: $ => choice(
-      // $.pointer_type,
-      // $.anonymous_struct_type,
-      // $.anonymous_enum_type,
-      // $.array_type,
-      // $.type_of_expression,
-      // $.type_literal,
-      // $.procedure,
-      // $.parameterized_struct_type,
-      // $.polymorphic_type,
-      // $.member_type,
-      $.identifier,
-      //
-      // prec.dynamic(-1, $._type_identifier),
-      // $.generic_type,
+      prec.dynamic(-1, $._type_identifier),
       // $.qualified_type,
       // $.pointer_type,
       // $.struct_type,
-      // $.interface_type,
-      // $.array_type,
-      // $.slice_type,
-      // $.channel_type,
+      // $.union_type,
+      // $.enum_type,
+      $.array_type,
+      $.array_view_type,
       // $.function_type,
       // $.negated_type,
+      // $.polymorphic_type,
+    ),
+
+    pointer_type: $ => prec(PREC.unary, seq('*', $._type)),
+    qualified_type: $ => seq(
+      field('import', $._import_identifier),
+      '.',
+      field('name', $._type_identifier),
     ),
 
     const_declaration: $ => seq(
-      field('name', commaSep1($.identifier)),
-      ':',
-      optional(field('type', $._type)),
-      ':',
-      commaSep1(choice($._expression, $._type)),
+      field('name', $.identifier),
+      choice(
+        '::',
+        seq(
+          ':',
+          optional(field('type', $._type)),
+          ':',
+        )
+      ),
+      field('value', $.expression_list),
     ),
+    expression_list: $ => commaSep1($._expression),
 
     identifier: _ => /[_\p{XID_Start}][_\p{XID_Continue}]*/,
 
@@ -241,7 +240,54 @@ module.exports = grammar({
     //   prec(2, token(/[^\s]+/)),
     //   prec(2, token('/*'))
     // ),
-    //
+
+    // composite_literal: $ => prec(PREC.composite_literal, seq(
+    //   field('type', choice(
+    //     // $.struct_type,
+    //     $._type_identifier,
+    //     $.qualified_type,
+    //   )),
+    //   field('body', $.literal_value),
+    // )),
+
+    array_literal: $ => prec(PREC.array_literal, seq(
+      optional(field('type', choice(
+        $.array_type,
+        $.array_view_type,
+        $.implicit_length_array_type,
+      ))),
+      field('body', $.array_value),
+    )),
+    array_type: $ => prec.right(seq(
+      '[',
+      field('length', $._expression),
+      ']',
+      field('element', $._type),
+    )),
+    array_view_type: $ => prec.right(seq(
+      '[',
+      ']',
+      field('element', $._type),
+    )),
+    implicit_length_array_type: $ => seq(
+      '[',
+      '..',
+      ']',
+      field('element', $._type),
+    ),
+    array_value: $ => seq(
+      '.[',
+      optional(
+        seq(
+          commaSep1($.literal_element),
+          optional(','))),
+      ']',
+    ),
+    literal_element: $ => choice(
+      $._expression,
+      // $.literal_value,
+    ),
+
     escape_sequence: _ => token.immediate(seq(
       '\\',
       choice(
@@ -277,13 +323,14 @@ module.exports = grammar({
       // $.type_assertion_expression,
       // $.type_conversion_expression,
       // $.type_instantiation_expression,
-      // $.identifier,
+      $.identifier,
       // alias(choice('new', 'make'), $.identifier),
       // $.composite_literal,
+      $.array_literal,
       // $.func_literal,
-      // $._string_literal,
-      // $.int_literal,
-      // $.float_literal,
+      $._string_literal,
+      $.int_literal,
+      $.float_literal,
       // $.imaginary_literal,
       // $.rune_literal,
       $.null,
@@ -293,6 +340,8 @@ module.exports = grammar({
       // $.parenthesized_expression,
     ),
 
+    int_literal: _ => token(intLiteral),
+    float_literal: _ => token(floatLiteral),
     null: _ => 'null',
     true: _ => 'true',
     false: _ => 'false',
