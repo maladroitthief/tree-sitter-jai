@@ -192,3 +192,57 @@ s3 :[2]string: .[
 					(literal_element
 						(interpreted_string_literal
 							(interpreted_string_literal_content))))))))
+
+================================================================================
+struct literals
+================================================================================
+
+s1 :: Person.{
+  name = "Frank",
+	Age = "5 months",
+};
+s2 :: struct{i: int;}.{i = 5};
+g1 : Holder(float, 5);
+
+--------------------------------------------------------------------------------
+(source_file
+	(const_declaration
+		(identifier)
+		(expression_list
+			(struct_literal
+				(type_identifier)
+				(struct_value
+					(keyed_element
+						(literal_element
+							(identifier))
+						(literal_element
+							(interpreted_string_literal
+								(interpreted_string_literal_content))))
+					(keyed_element
+						(literal_element
+							(identifier))
+						(literal_element
+							(interpreted_string_literal
+								(interpreted_string_literal_content))))))))
+	(const_declaration
+		(identifier)
+		(expression_list
+			(struct_literal
+				(struct_type
+					(struct_block
+						(field_declaration
+							(field_identifier)
+							(type_identifier))))
+				(struct_value
+					(keyed_element
+						(literal_element
+							(identifier))
+						(literal_element
+							(int_literal)))))))
+				(var_declaration
+					(identifier)
+					(struct_type
+						(identifier)
+						(argument_list
+							(identifier)
+							(int_literal)))))

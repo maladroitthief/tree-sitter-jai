@@ -73,7 +73,7 @@ module.exports = grammar({
     // todo: understand what this is doing
     $._type,
     $._type_identifier,
-    // $._field_identifier,
+    $._field_identifier,
     $._top_level_declaration,
     $._string_literal,
     // $._interface_elem,
@@ -167,17 +167,44 @@ module.exports = grammar({
       // $.empty_statement,
     ),
 
+    _expression: $ => choice(
+      // $.unary_expression,
+      // $.binary_expression,
+      // $.selector_expression,
+      // $.index_expression,
+      // $.slice_expression,
+      // $.call_expression,
+      // $.type_assertion_expression,
+      // $.type_conversion_expression,
+      // $.type_instantiation_expression,
+      $.identifier,
+      // alias(choice('new', 'make'), $.identifier),
+      $.struct_literal,
+      $.array_literal,
+      // $.func_literal,
+      $._string_literal,
+      $.int_literal,
+      $.float_literal,
+      // $.imaginary_literal,
+      // $.rune_literal,
+      $.null,
+      $.true,
+      $.false,
+      $.iota,
+      // $.parenthesized_expression,
+    ),
+
     _declaration: $ => choice(
       $.const_declaration,
       // $.type_declaration,
-      // $.var_declaration,
+      $.var_declaration,
     ),
 
     _type: $ => choice(
       prec.dynamic(-1, $._type_identifier),
       // $.qualified_type,
       // $.pointer_type,
-      // $.struct_type,
+      $.struct_type,
       // $.union_type,
       // $.enum_type,
       $.array_type,
@@ -206,7 +233,47 @@ module.exports = grammar({
       ),
       field('value', $.expression_list),
     ),
+    var_declaration: $ => seq(
+      field('name', $.identifier),
+      choice(
+        seq(
+          ':=',
+          field('value', $.expression_list),
+        ),
+        seq(
+          ':',
+          optional(field('type', $._type)),
+          optional(seq(
+            '=',
+            field('value', $.expression_list),
+          )),
+        ),
+      ),
+    ),
     expression_list: $ => commaSep1($._expression),
+    argument_list: $ => seq(
+      '(',
+      optional(seq(
+        $._expression,
+        repeat(seq(',', $._expression)),
+        optional(','),
+      )),
+      ')',
+    ),
+
+    parameter_list: $ => seq(
+      '(',
+      optional(seq(
+        commaSep1($.parameter_declaration),
+        optional(','),
+      )),
+      ')',
+    ),
+    parameter_declaration: $ => seq(
+      commaSep1(field('name', $.identifier)),
+      field('type', $._type),
+    ),
+
 
     identifier: _ => /[_\p{XID_Start}][_\p{XID_Continue}]*/,
 
@@ -241,14 +308,71 @@ module.exports = grammar({
     //   prec(2, token('/*'))
     // ),
 
-    // composite_literal: $ => prec(PREC.composite_literal, seq(
-    //   field('type', choice(
-    //     // $.struct_type,
-    //     $._type_identifier,
-    //     $.qualified_type,
-    //   )),
-    //   field('body', $.literal_value),
-    // )),
+    struct_literal: $ => prec(PREC.composite_literal, seq(
+      field('type', choice(
+        $.struct_type,
+        $._type_identifier,
+        // $.qualified_type,
+      )),
+      field('body', $.struct_value),
+    )),
+
+    struct_type: $ => seq(
+      choice(
+        seq(
+          'struct',
+          optional($._directive_identifier),
+          field('modifier', optional($.argument_list)),
+          $.struct_block,
+        ),
+        seq(
+          field('type', $.identifier),
+          $.argument_list,
+        ),
+      ),
+    ),
+
+    struct_block: $ => prec.left(seq(
+      '{',
+      optional(repeat(choice(
+        $.field_declaration,
+      ))),
+      '}',
+    )),
+
+    field_declaration: $ => seq(
+      choice(
+        seq(
+          commaSep1(field('name', $._field_identifier)),
+          ":",
+          field('type', $._type),
+          optional(seq("=", field('value', $.literal_element))),
+          terminator,
+        ),
+      ),
+      field('tag', optional($._string_literal)),
+    ),
+
+    struct_value: $ => seq(
+      '.{',
+      optional(
+        seq(
+          commaSep1($.keyed_element),
+          optional(','))),
+      '}',
+    ),
+    keyed_element: $ => seq(
+      field('key', $.literal_element),
+      '=',
+      field('value', $.literal_element),
+    ),
+
+    array_type: $ => prec.right(seq(
+      '[',
+      field('length', $._expression),
+      ']',
+      field('element', $._type),
+    )),
 
     array_literal: $ => prec(PREC.array_literal, seq(
       optional(field('type', choice(
@@ -312,33 +436,6 @@ module.exports = grammar({
 
     _import: _ => '#import',
     _string: _ => '#string',
-
-    _expression: $ => choice(
-      // $.unary_expression,
-      // $.binary_expression,
-      // $.selector_expression,
-      // $.index_expression,
-      // $.slice_expression,
-      // $.call_expression,
-      // $.type_assertion_expression,
-      // $.type_conversion_expression,
-      // $.type_instantiation_expression,
-      $.identifier,
-      // alias(choice('new', 'make'), $.identifier),
-      // $.composite_literal,
-      $.array_literal,
-      // $.func_literal,
-      $._string_literal,
-      $.int_literal,
-      $.float_literal,
-      // $.imaginary_literal,
-      // $.rune_literal,
-      $.null,
-      $.true,
-      $.false,
-      $.iota,
-      // $.parenthesized_expression,
-    ),
 
     int_literal: _ => token(intLiteral),
     float_literal: _ => token(floatLiteral),

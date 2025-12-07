@@ -25,9 +25,25 @@ c :: "\x0c";
 // d :: "errorstring
 // ";
 
-s1 :[0]string: .[];
-s2 :[1]string: .["hello"];
-s3 :[2]string: .[
+str1 :[0]string: .[];
+str2 :[1]string: .["hello"];
+str3 :[2]string: .[
   "hello",
 	"sailor",
 ];
+
+Person :: struct {
+	name: string;
+	Age: string;
+};
+Holder :: struct ($T: Type, $N: s64) {
+	array: [N] T;
+}
+
+s1 :: Person.{
+  name = "Frank",
+	Age = "5 months",
+};
+s2 :: struct{i: int;}.{i = 5};
+g1 : Holder(float, 5);
+
